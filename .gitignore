@@ -1,3 +1,6 @@
 obj
 bin
 *.elay
+*.depend
+*.out
+*.cscope_file_list

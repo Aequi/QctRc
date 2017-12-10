@@ -14,11 +14,11 @@ void halGpioInit(void)
 
     GPIO_Init(HAL_GPIO_RF_MODE_PORT, &gpioInitStructure);
 
-    GPIO_ResetBits(HAL_GPIO_RF_MODE_PORT, gpioInitStructure.GPIO_Pin);
+    GPIO_SetBits(HAL_GPIO_RF_MODE_PORT, gpioInitStructure.GPIO_Pin);
 }
 
 void halGpioEnableRfAt(bool isEnabled)
 {
-    GPIO_WriteBit(HAL_GPIO_RF_MODE_PORT, HAL_GPIO_RF_MODE_PIN, isEnabled ? Bit_SET : Bit_RESET);
+    GPIO_WriteBit(HAL_GPIO_RF_MODE_PORT, HAL_GPIO_RF_MODE_PIN, isEnabled ? Bit_RESET : Bit_SET);
 }
 

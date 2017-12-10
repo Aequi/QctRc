@@ -4,4 +4,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define LCD_HEIGHT      64
+#define LCD_WIDTH       128
+#define PIXEL_PER_BYTE  8
+
+extern uint8_t lcdBuffer[LCD_HEIGHT * LCD_WIDTH / PIXEL_PER_BYTE];
+
+void halI2cLcdInit(void);
+void halI2cLcdRefresh(void);
+
 #endif

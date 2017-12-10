@@ -70,12 +70,8 @@ int main(void)
 
     // Set configuration
     isRfTxReady = false;
-    uartRfDmaTx((uint8_t *) "AT+UART=1382400,1,0\r\n", sizeof("AT+UART=1382400,1,0\r\n") - 1, rfTxReady);
+    uartRfDmaTx((uint8_t *) "AT+B115200", sizeof("AT+B115200") - 1, rfTxReady);
     while (!isRfTxReady);
-    isRfTxReady = false;
-    uartRfDmaTx((uint8_t *) "AT+NAME=Imu2\r\n", sizeof("AT+NAME=Imu2\r\n") - 1, rfTxReady);
-    while (!isRfTxReady);
-    isRfTxReady = false;
 
     halGpioEnableRfAt(false);
 
@@ -88,9 +84,35 @@ int main(void)
     isRfTxReady = true;
     #endif
 
-    uartRfDmaStartStopRx(true);
+    volatile uint32_t cntr = 0;
+    for (cntr = 0; cntr < 300000; cntr ++) {
 
+    }
+
+    halI2cLcdInit();
+    uartRfDmaStartStopRx(true);
+    uint32_t p = 0;
     for (;;) {
         appProcessCmdBuffer(uartRfGetCurrentRxBuffIdx());
+
+        uint32_t cntr = 0;
+        for (cntr = 0; cntr < LCD_HEIGHT * LCD_WIDTH / PIXEL_PER_BYTE; cntr++) {
+            lcdBuffer[cntr] = ((0x55 >> (p & 7)) ^ (cntr ^ p));
+        }
+        halI2cLcdRefresh();
+        for (cntr = 0; cntr < 300000; cntr++) {
+
+        }
+
+        for (cntr = 0; cntr < LCD_HEIGHT * LCD_WIDTH / PIXEL_PER_BYTE; cntr++) {
+            lcdBuffer[cntr] = ((0xAA >> (p & 7)) ^ (cntr ^ p));
+        }
+
+        halI2cLcdRefresh();
+
+        for (cntr = 0; cntr < 300000; cntr++) {
+
+        }
+        p += 1;
     }
 }
