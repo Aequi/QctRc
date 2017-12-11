@@ -7,7 +7,7 @@
 #define ADC_BUFF_SIZE       64
 #define ADC_CHANNEL_COUNT   6
 
-typedef void (*HalAdcDataReady)(const uint8_t data[], uint32_t length);
+typedef void (*HalAdcDataReady)(const uint16_t data[], uint32_t length);
 
 void halAdcInit(HalAdcDataReady halAdcDataReadyCb);
 

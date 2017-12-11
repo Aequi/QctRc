@@ -1,6 +1,7 @@
 #include "HalI2c.h"
 #include "stm32f0xx_conf.h"
 
+#include <stddef.h>
 
 #define HAL_I2C_LCD_SDA_PIN                             GPIO_Pin_10
 #define HAL_I2C_LCD_SDA_PIN_SOURCE                      GPIO_PinSource10
@@ -168,4 +169,30 @@ void halI2cLcdInit(void)
     sendCommand(SSD1306_NORMALDISPLAY);
     sendCommand(SSD1306_DEACTIVATE_SCROLL);
     sendCommand(SSD1306_DISPLAYON);
+}
+
+extern const uint8_t * getFont(void);
+
+void halI2cLcdPrintString(uint32_t x, uint32_t y, const char str[])
+{
+    if (str == NULL)
+        return;
+
+    x = 127 - x;
+    y = 7 - y;
+    const uint8_t * font = getFont();
+    uint32_t byteCntr = 0;
+    while (*str) {
+        uint32_t chrCounter = 0;
+        for (chrCounter = 0; chrCounter < 5; chrCounter++) {
+            uint8_t b = font[(*str - ' ') * 5 + chrCounter];
+            b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4);
+            b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
+            b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
+
+            lcdBuffer[y * 128 + x - byteCntr++] = b;
+        }
+        str++;
+        lcdBuffer[y * 128 + x - byteCntr++] = 0;
+    }
 }

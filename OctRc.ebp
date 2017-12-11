@@ -84,6 +84,9 @@
 		<Unit filename="cmsis\core_cm0.h" />
 		<Unit filename="cmsis\core_cmFunc.h" />
 		<Unit filename="cmsis\core_cmInstr.h" />
+		<Unit filename="Font\Font.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="HAL\HalAdc.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -50,8 +50,19 @@ void rfTxReady()
     isRfTxReady = true;
 }
 
-void adcDataReady(const uint8_t data[], uint32_t length)
+static char batteryVoltageString[5];
+void adcDataReady(const uint16_t data[], uint32_t length)
 {
+    uint32_t batteryVoltage = 0;
+    uint32_t bcnt = 0;
+    for (bcnt = 0; bcnt < 64; bcnt++)
+        batteryVoltage += *(data + (6 * bcnt));
+    batteryVoltage = (batteryVoltage >> 6) * 6750 / 4095;
+    batteryVoltageString[4] = 0;
+    batteryVoltageString[0] = batteryVoltage / 1000 + '0';
+    batteryVoltageString[1] = batteryVoltage % 1000 / 100 + '0';
+    batteryVoltageString[2] = batteryVoltage % 100 / 10 + '0';
+    batteryVoltageString[3] = batteryVoltage % 10 + '0';
 
 }
 
@@ -95,31 +106,18 @@ int main(void)
 
     halI2cLcdInit();
     uartRfDmaStartStopRx(true);
-    uint32_t p = 0;
 
     halAdcInit(adcDataReady);
-
+    halI2cLcdPrintString(40, 1, "Power ON!");
+    halI2cLcdRefresh();
+    uint32_t refreshTimer = 0;
     for (;;) {
         appProcessCmdBuffer(uartRfGetCurrentRxBuffIdx());
-
-        uint32_t cntr = 0;
-        for (cntr = 0; cntr < LCD_HEIGHT * LCD_WIDTH / PIXEL_PER_BYTE; cntr++) {
-            lcdBuffer[cntr] = ((0x55 >> (p & 7)) ^ (cntr ^ p));
+        if (refreshTimer++ == 100000) {
+            halI2cLcdPrintString(0, 3, "Battery voltage:");
+            halI2cLcdPrintString(100, 3, batteryVoltageString);
+            halI2cLcdRefresh();
+            refreshTimer = 0;
         }
-        halI2cLcdRefresh();
-        for (cntr = 0; cntr < 300000; cntr++) {
-
-        }
-
-        for (cntr = 0; cntr < LCD_HEIGHT * LCD_WIDTH / PIXEL_PER_BYTE; cntr++) {
-            lcdBuffer[cntr] = ((0xAA >> (p & 7)) ^ (cntr ^ p));
-        }
-
-        halI2cLcdRefresh();
-
-        for (cntr = 0; cntr < 300000; cntr++) {
-
-        }
-        p += 1;
     }
 }
