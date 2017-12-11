@@ -50,6 +50,10 @@ void rfTxReady()
     isRfTxReady = true;
 }
 
+void adcDataReady(const uint8_t data[], uint32_t length)
+{
+
+}
 
 int main(void)
 {
@@ -92,6 +96,9 @@ int main(void)
     halI2cLcdInit();
     uartRfDmaStartStopRx(true);
     uint32_t p = 0;
+
+    halAdcInit(adcDataReady);
+
     for (;;) {
         appProcessCmdBuffer(uartRfGetCurrentRxBuffIdx());
 

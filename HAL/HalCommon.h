@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+extern void (*dmaCh1Cb)(bool isHalf);
 extern void (*dmaCh2Cb)(bool isHalf);
 extern void (*dmaCh3Cb)(bool isHalf);
 extern void (*dmaCh4Cb)(bool isHalf);

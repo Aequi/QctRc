@@ -12,15 +12,12 @@
 
 #define I2C_PERIPH_HWUNIT                               I2C1
 
-#define I2C_PERIPH_CLOCK_SPEED                          1000000u
 #define I2C_PERIPH_OWN_ADDRESS                          1u
-
 
 #define LCD_ADDRESS                                     0x78
 
 #define SSD1306_LCDWIDTH                                128
 #define SSD1306_LCDHEIGHT                               64
-
 
 #define SSD1306_SETCONTRAST                             0x81
 #define SSD1306_DISPLAYALLON_RESUME                     0xA4
@@ -29,37 +26,24 @@
 #define SSD1306_INVERTDISPLAY                           0xA7
 #define SSD1306_DISPLAYOFF                              0xAE
 #define SSD1306_DISPLAYON                               0xAF
-
 #define SSD1306_SETDISPLAYOFFSET                        0xD3
 #define SSD1306_SETCOMPINS                              0xDA
-
 #define SSD1306_SETVCOMDETECT                           0xDB
-
 #define SSD1306_SETDISPLAYCLOCKDIV                      0xD5
 #define SSD1306_SETPRECHARGE                            0xD9
-
 #define SSD1306_SETMULTIPLEX                            0xA8
-
 #define SSD1306_SETLOWCOLUMN                            0x00
 #define SSD1306_SETHIGHCOLUMN                           0x10
-
 #define SSD1306_SETSTARTLINE                            0x40
-
 #define SSD1306_MEMORYMODE                              0x20
 #define SSD1306_COLUMNADDR                              0x21
 #define SSD1306_PAGEADDR                                0x22
-
 #define SSD1306_COMSCANINC                              0xC0
 #define SSD1306_COMSCANDEC                              0xC8
-
 #define SSD1306_SEGREMAP                                0xA0
-
 #define SSD1306_CHARGEPUMP                              0x8D
-
-#define SSD1306_EXTERNALVCC                             0x1
-#define SSD1306_SWITCHCAPVCC                            0x2
-
-
+#define SSD1306_EXTERNALVCC                             0x01
+#define SSD1306_SWITCHCAPVCC                            0x02
 #define SSD1306_ACTIVATE_SCROLL                         0x2F
 #define SSD1306_DEACTIVATE_SCROLL                       0x2E
 #define SSD1306_SET_VERTICAL_SCROLL_AREA                0xA3
@@ -164,13 +148,13 @@ void halI2cLcdInit(void)
     sendCommand(SSD1306_SETMULTIPLEX);
     sendCommand(SSD1306_LCDHEIGHT - 1);
     sendCommand(SSD1306_SETDISPLAYOFFSET);
-    sendCommand(0x0);
-    sendCommand(SSD1306_SETSTARTLINE | 0x0);
+    sendCommand(0x00);
+    sendCommand(SSD1306_SETSTARTLINE | 0x00);
     sendCommand(SSD1306_CHARGEPUMP);
     sendCommand(0x14);
     sendCommand(SSD1306_MEMORYMODE);
     sendCommand(0x00);
-    sendCommand(SSD1306_SEGREMAP | 0x1);
+    sendCommand(SSD1306_SEGREMAP | 0x01);
     sendCommand(SSD1306_COMSCANDEC);
     sendCommand(SSD1306_SETCOMPINS);
     sendCommand(0x12);
