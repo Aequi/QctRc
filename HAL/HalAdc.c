@@ -20,10 +20,10 @@ static void halAdcDmaHandler(bool isHalf)
 {
     if (isHalf) {
         if (halAdcDataReadyCallback)
-            halAdcDataReadyCallback((const uint16_t *) adcDataArray[0], sizeof(adcDataArray[0]));
+            halAdcDataReadyCallback((const uint16_t *) adcDataArray[0], sizeof(adcDataArray[0]) / sizeof(adcDataArray[0][0]));
     } else {
         if (halAdcDataReadyCallback)
-            halAdcDataReadyCallback((const uint16_t *) adcDataArray[1], sizeof(adcDataArray[1]));
+            halAdcDataReadyCallback((const uint16_t *) adcDataArray[1], sizeof(adcDataArray[1]) / sizeof(adcDataArray[0][0]));
     }
 }
 

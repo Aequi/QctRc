@@ -173,6 +173,17 @@ void halI2cLcdInit(void)
 
 extern const uint8_t * getFont(void);
 
+static void inline halI2cPutPixel(uint32_t x, uint32_t y)
+{
+    lcdBuffer[((0x07 - y / 8) << 0x07) + (127 - x)] |= (1 << (0x07 - (y & 0x07)));
+}
+
+static void inline halI2cClrPixel(uint32_t x, uint32_t y)
+{
+    lcdBuffer[((0x07 - y / 8) << 0x07) + (127 - x)] &= ~(1 << (0x07 - (y & 0x07)));
+}
+
+
 void halI2cLcdPrintString(uint32_t x, uint32_t y, const char str[])
 {
     if (str == NULL)
@@ -190,9 +201,186 @@ void halI2cLcdPrintString(uint32_t x, uint32_t y, const char str[])
             b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
             b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
 
-            lcdBuffer[y * 128 + x - byteCntr++] = b;
+            lcdBuffer[(y << 7) + x - byteCntr++] = b;
         }
         str++;
-        lcdBuffer[y * 128 + x - byteCntr++] = 0;
+        lcdBuffer[(y << 7) + x - byteCntr++] = 0;
     }
+
+}
+
+void halI2cInitJoyBars(void)
+{
+    uint32_t pcnt = 0;
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        halI2cPutPixel(0 + pcnt, 1);
+        halI2cPutPixel(0 + pcnt, 56);
+        halI2cPutPixel(121 + pcnt, 1);
+        halI2cPutPixel(121 + pcnt, 56);
+        halI2cPutPixel(7, 57 + pcnt);
+        halI2cPutPixel(120, 57 + pcnt);
+        halI2cPutPixel(7 + 55, 57 + pcnt);
+        halI2cPutPixel(7 + 58, 57 + pcnt);
+    }
+    for (pcnt = 0; pcnt < 55; pcnt++) {
+        halI2cPutPixel(3, 2 + pcnt);
+        halI2cPutPixel(124, 2 + pcnt);
+    }
+    for (pcnt = 0; pcnt < 55; pcnt++) {
+        halI2cPutPixel(8 + pcnt, 60);
+        halI2cPutPixel(65 + pcnt, 60);
+    }
+}
+
+void halI2cSetJoyBars(uint32_t x, uint32_t y, uint32_t x1, uint32_t y1)
+{
+    static uint32_t prevVals[4], vals[4];
+
+    vals[0] = 2 + 53 - (y * 53 / 4050);
+    vals[1] = 8 + 53 - (x * 53 / 4050);
+    vals[2] = 2 + 53 - (y1 * 53 / 4050);
+    vals[3] = 66 + 53 - (x1 * 53 / 4050);
+
+
+    uint32_t pcnt = 0;
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cClrPixel(0 + pcnt, prevVals[0]);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cPutPixel(0 + pcnt, vals[0]);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cClrPixel(prevVals[1], 57 + pcnt);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cPutPixel(vals[1], 57 + pcnt);
+    }
+
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cClrPixel(121 + pcnt, prevVals[2]);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cPutPixel(121 + pcnt, vals[2]);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cClrPixel(prevVals[3], 57 + pcnt);
+    }
+
+    for (pcnt = 0; pcnt < 7; pcnt++) {
+        if (pcnt == 3) {
+            continue;
+        }
+
+        halI2cPutPixel(vals[3], 57 + pcnt);
+    }
+
+    for (pcnt = 0; pcnt < 4; pcnt++) {
+        prevVals[pcnt] = vals[pcnt];
+    }
+
+}
+
+void halI2cLcdRefreshMin(void)
+{
+    static uint32_t blockCntr = 0;
+
+    if (blockCntr == 0) {
+        sendCommand(SSD1306_COLUMNADDR);
+        sendCommand(0);
+        sendCommand(SSD1306_LCDWIDTH - 1);
+
+        sendCommand(SSD1306_PAGEADDR);
+        sendCommand(0);
+        sendCommand(7);
+    }
+
+
+    while (I2C_GetFlagStatus(I2C_PERIPH_HWUNIT, I2C_FLAG_BUSY));
+    I2C_TransferHandling(I2C_PERIPH_HWUNIT, LCD_ADDRESS, 129, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
+    while(I2C_GetFlagStatus(I2C_PERIPH_HWUNIT, I2C_ISR_TXIS) == RESET);
+    I2C_SendData(I2C_PERIPH_HWUNIT, 0x40);
+    while(!I2C_GetFlagStatus(I2C_PERIPH_HWUNIT, I2C_FLAG_TXE));
+
+    uint32_t byteCntr = 0;
+    for (byteCntr = 0; byteCntr < 128; byteCntr++) {
+        I2C_SendData(I2C_PERIPH_HWUNIT, lcdBuffer[blockCntr * 128 + byteCntr]);
+        while(!I2C_GetFlagStatus(I2C_PERIPH_HWUNIT, I2C_FLAG_TXE));
+    }
+
+    I2C_TransferHandling(I2C_PERIPH_HWUNIT, LCD_ADDRESS, 0, I2C_AutoEnd_Mode,  I2C_Generate_Stop);
+    while(!I2C_GetFlagStatus(I2C_PERIPH_HWUNIT, I2C_FLAG_STOPF));
+    I2C_ClearFlag(I2C_PERIPH_HWUNIT, I2C_FLAG_STOPF);
+
+    if (blockCntr++ == 7) {
+        blockCntr = 0;
+    }
+}
+
+
+static const char buttonEmptySymbol[] = {128 + 7, 0};
+static const char buttonCheckedSymbol[] = {128 + 8, 0};
+
+static const uint32_t buttonCx[] = {10, 114, 61, 61, 53, 69};
+static const uint32_t buttonCy[] = {6, 6, 4, 6, 5, 5};
+
+void halI2cSetConn(bool isConnected)
+{
+    halI2cLcdPrintString(108, 4, isConnected ? buttonCheckedSymbol : buttonEmptySymbol);
+}
+
+void halI2cInitButton(void)
+{
+    uint32_t cnt = 0;
+    for (cnt = 0; cnt < 6; cnt++) {
+        halI2cLcdPrintString(buttonCx[cnt], buttonCy[cnt], buttonEmptySymbol);
+    }
+}
+
+void halI2cSetButton(uint32_t button)
+{
+    static uint32_t prevButton = 0;
+
+    if (prevButton) {
+        halI2cLcdPrintString(buttonCx[prevButton - 1], buttonCy[prevButton - 1], buttonEmptySymbol);
+    }
+
+    if (button) {
+        halI2cLcdPrintString(buttonCx[button - 1], buttonCy[button - 1], buttonCheckedSymbol);
+    }
+
+    prevButton = button;
 }

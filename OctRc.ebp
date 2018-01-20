@@ -52,7 +52,7 @@
 		<Device>
 			<Add option="$device=cortex-m0" />
 			<Add option="$lscript=./stm32f030f4_flash.ld" />
-			<Add option="$stack=0x0100" />
+			<Add option="$stack=0x0200" />
 			<Add option="$heap=0x0000" />
 		</Device>
 		<Compiler>
