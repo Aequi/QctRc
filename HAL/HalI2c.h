@@ -18,6 +18,7 @@ void halI2cInitJoyBars(void);
 void halI2cSetJoyBars(uint32_t x, uint32_t y, uint32_t x1, uint32_t y1);
 void halI2cInitButton();
 void halI2cSetButton(uint32_t button);
+void halI2cSetConn(bool isConnected);
 
 
 #endif
