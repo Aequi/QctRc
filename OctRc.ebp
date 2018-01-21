@@ -200,6 +200,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="stm32f030f4_flash.ld" />
+		<Unit filename="Timer\Timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Timer\Timer.h" />
 		<Extensions>
 			<code_completion />
 			<debugger>
