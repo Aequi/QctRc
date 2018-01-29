@@ -1,25 +1,10 @@
-/*
-**
-**                           Main.c
-**
-**
-**********************************************************************/
-/*
-   Last committed:     $Revision: 00 $
-   Last changed by:    $Author: $
-   Last changed date:  $Date:  $
-   ID:                 $Id:  $
-
-**********************************************************************/
-#include "stm32f0xx_conf.h"
 #include "HalCommon.h"
 #include "HalGpio.h"
 #include "HalUart.h"
 #include "HalI2c.h"
 #include "HalAdc.h"
 #include "Timer.h"
-
-#define SET_Rf_PARAMS   0
+#include <stddef.h>
 
 typedef enum {
     StartByte,
@@ -28,7 +13,7 @@ typedef enum {
 
 
 static uint8_t batteryLevel = 0;
-static uint32_t cmdTimer = 0;
+static volatile uint32_t cmdTimer = 0;
 static bool connectionStatus = false;
 
 void appProcessProtocolByte(uint8_t cmdByte)
@@ -57,7 +42,7 @@ void rfTxReady()
     isRfTxReady = true;
 }
 
-static volatile bool isLcdRefreshNeeded = true;
+static volatile bool isLcdRefreshNeeded = true, isRfRefreshNeeded = true;
 
 void timerCb(void)
 {
@@ -65,7 +50,18 @@ void timerCb(void)
         cmdTimer = 1000;
     }
 
-    isLcdRefreshNeeded = true;
+    static uint32_t lcdRefreshTimer = 0;
+    static uint32_t rfRefreshTimer = 0;
+    if (lcdRefreshTimer++ >= 2) {
+        isLcdRefreshNeeded = true;
+        lcdRefreshTimer = 0;
+    }
+
+    if (rfRefreshTimer++ >= 10) {
+        isRfRefreshNeeded = true;
+        rfRefreshTimer = 0;
+    }
+
 }
 
 static volatile uint32_t ovrCntr = 0;
@@ -130,47 +126,64 @@ uint32_t getButtonState(uint32_t adcValue)
     return 0;
 }
 
-uint8_t crcUpdate(uint8_t crc, uint8_t byte)
-{
-    uint8_t val = (crc << 1) ^ byte, crcP = 0x89, j = 0;
+#define PACKET_LENGTH   9
+#define START_BIT       0x80
 
-    uint8_t x = (val & 0x80) ? val ^ crcP : val;
-    for (j = 0; j < 7; ++j) {
-        x <<= 1;
-        if (x & 0x80) {
-            x ^= crcP;
-        }
+#pragma pack(push, 1)
+typedef struct ProtocolJoystickPacket {
+    uint16_t leftX;
+    uint16_t leftY;
+    uint16_t rightX;
+    uint16_t rightY;
+    uint8_t buttonCode;
+} ProtocolJoystickPacket;
+#pragma pack(pop)
+
+static uint8_t crcUpdate(uint8_t crc, uint8_t byte)
+{
+    const uint8_t poly = 0x07;
+    crc ^= byte;
+    for (uint32_t i = 0; i < 0x08; i++) {
+        crc = (crc << 1) ^ ((crc & 0x80) ? poly : 0);
     }
 
-    return x;
+    return crc;
 }
 
-uint8_t crc7(uint8_t buffer[], uint32_t length)
+static uint8_t crc8(uint8_t buffer[], uint32_t length)
 {
-    uint8_t crc7 = 0, bcnt = 0;
+    uint8_t crc8 = 0, bcnt = 0;
     for (bcnt = 0; bcnt < length; bcnt++) {
-        crc7 = crcUpdate(crc7, buffer[bcnt]);
+        crc8 = crcUpdate(crc8, buffer[bcnt]);
     }
 
-    return crc7;
+    return crc8;
 }
 
-void packRcData(uint8_t buffer[], uint16_t joyData[], uint8_t buttonState)
+static void protocolPack(uint8_t data[PACKET_LENGTH], const ProtocolJoystickPacket *joystickData)
 {
-    buffer[0] = ((joyData[0] >> 4) | 0x80);
-    buffer[1] = (((joyData[0] << 4) | (joyData[1] >> 8)) & ~0x80);
-    buffer[2] = (joyData[1] & ~0x80);
-    buffer[3] = ((joyData[2] >> 4) & ~0x80);
-    buffer[4] = (((joyData[2] << 4) | (joyData[3] >> 8)) & ~0x80);
-    buffer[5] = (joyData[3] & ~0x80);
-    buffer[6] = ((joyData[0] >> 11) & 0x01) | ((joyData[0] >> 2) & 0x02) | ((joyData[1] >> 5) & 0x04) | ((joyData[2] >> 8) & 0x08) | ((joyData[2] << 1) & 0x10) | ((joyData[3] >> 2) & 0x20);
-    buffer[7] = buttonState;
-    buffer[8] = crc7(buffer, 8);
+    if (data == NULL || joystickData == NULL) {
+        return;
+    }
+
+    data[0] = ((joystickData->leftX >> 4) | START_BIT);
+    data[1] = (((joystickData->leftX << 4) | (joystickData->leftY >> 8)) & ~START_BIT);
+    data[2] = (joystickData->leftY & ~START_BIT);
+    data[3] = ((joystickData->rightX >> 4) & ~START_BIT);
+    data[4] = (((joystickData->rightX << 4) | (joystickData->rightY >> 8)) & ~START_BIT);
+    data[5] = (joystickData->rightY & ~START_BIT);
+    data[6] = joystickData->buttonCode & 0x7F;
+    data[7] = ((joystickData->leftX >> 11) & 0x01) | ((joystickData->leftX >> 2) & 0x02) | ((joystickData->leftY >> 5) & 0x04) |
+            ((joystickData->rightX >> 8) & 0x08) | ((joystickData->rightX << 1) & 0x10) | ((joystickData->rightY >> 2) & 0x20);
+
+    uint8_t crc = crc8(data, 8);
+    data[8] = crc & 0x7F;
+    data[7] |= (crc >> 1) & 0x40;
 }
 
-uint32_t batteryVoltageRc, batteryVoltageQ, buttonState;
-uint16_t joyData[4];
-uint8_t rcData[9];
+ProtocolJoystickPacket joyData;
+uint32_t batteryVoltageRc, batteryVoltageQ;
+uint8_t rcData[PACKET_LENGTH];
 
 int main(void)
 {
@@ -233,7 +246,6 @@ int main(void)
 
     for (;;) {
         if (adcValuesReady) {
-
             batteryVoltageRc = (adcValues[0] * 6750) >> 12;
             batteryVoltageRc = (batteryVoltageRc - 3300) * 6 / 850;
 
@@ -241,7 +253,7 @@ int main(void)
                 batteryVoltageRc = 6;
             }
 
-            batteryVoltageQ = (batteryLevel * 20 - 3300) * 6 / 850;
+            batteryVoltageQ = batteryLevel * 6 / 100;
             if (batteryVoltageQ > 6) {
                 batteryVoltageQ = 6;
             }
@@ -250,32 +262,34 @@ int main(void)
             batQ[0] = BAT_START + batteryVoltageQ;
             halI2cLcdPrintString(108, 2, batQ);
 
-            if (cmdTimer >= 1000) {
-                connectionStatus = false;
-            } else {
-                connectionStatus = true;
-            }
-
             halI2cSetConn(connectionStatus);
-            buttonState = adcValues[5];
-            joyData[0] = adcValues[2];
-            joyData[1] = adcValues[3];
-            joyData[2] = adcValues[4];
-            joyData[3] = adcValues[1];
+            uint16_t buttonData = adcValues[5];
+            joyData.leftX = adcValues[2];
+            joyData.leftY = adcValues[3];
+            joyData.rightX = adcValues[4];
+            joyData.rightY = adcValues[1];
 
-            buttonState = getButtonState(buttonState);
-            halI2cSetJoyBars(joyData[0], joyData[1], joyData[2], joyData[3]);
-            halI2cSetButton(buttonState);
-            packRcData(rcData, joyData, buttonState);
+            joyData.buttonCode = getButtonState(buttonData);
+            halI2cSetJoyBars(joyData.leftX, joyData.leftY, joyData.rightX, joyData.rightY);
+            halI2cSetButton(joyData.buttonCode);
+            protocolPack(rcData, &joyData);
 
-            if (isRfTxReady) {
+            if (isRfTxReady && isRfRefreshNeeded) {
                 uartRfDmaTx(rcData, sizeof(rcData), rfTxReady);
                 isRfTxReady = false;
+                isRfRefreshNeeded = false;
             }
+
             adcValuesReady = false;
         }
 
         appProcessCmdBuffer(uartRfGetCurrentRxBuffIdx());
+        if (cmdTimer >= 1000) {
+            batteryLevel = 0;
+            connectionStatus = false;
+        } else {
+            connectionStatus = true;
+        }
 
         if (isLcdRefreshNeeded) {
             halI2cLcdRefreshMin();
